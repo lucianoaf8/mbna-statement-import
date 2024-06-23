@@ -1,6 +1,7 @@
 import os
 import mysql.connector
-from mysql.connector import errorcode
+from mysql.connector import pooling
+from urllib.parse import urlparse
 import PyPDF2
 from datetime import datetime
 from dotenv import load_dotenv
@@ -12,22 +13,23 @@ MYSQL_URL = os.getenv("MYSQL_URL")
 MYSQL_USER = os.getenv("MYSQL_USER")
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
 
+dbconfig = {
+    "host": urlparse(MYSQL_URL).hostname,
+    "port": urlparse(MYSQL_URL).port if urlparse(MYSQL_URL).port else 3306,
+    "user": MYSQL_USER,
+    "password": MYSQL_PASSWORD,
+    "database": urlparse(MYSQL_URL).path.lstrip('/')
+}
+
+connection_pool = pooling.MySQLConnectionPool(pool_name="mypool", pool_size=5, **dbconfig)
+
 # Establish database connection
 def connect_to_db():
     try:
-        connection = mysql.connector.connect(
-            host=MYSQL_URL,
-            user=MYSQL_USER,
-            password=MYSQL_PASSWORD
-        )
+        connection = connection_pool.get_connection()
         return connection
     except mysql.connector.Error as err:
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("Something is wrong with your user name or password")
-        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print("Database does not exist")
-        else:
-            print(err)
+        print(f"Error: {err}")
         return None
 
 # Extract data from PDF
