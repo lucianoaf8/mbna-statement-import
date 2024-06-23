@@ -1,13 +1,8 @@
+import os
 import logging
-from db_connection import connect_to_db
-from file_loader import load_files
 from data_extractor import extract_data_from_pdf
+from db_connection import connect_to_db
 from data_inserter import insert_data_into_db
-
-# Set up logging
-log_file_path = './logs/pdf_to_db.log'
-logging.basicConfig(filename=log_file_path, level=logging.DEBUG, 
-                    format='%(asctime)s %(levelname)s:%(message)s')
 
 def main():
     connection = connect_to_db()
@@ -17,17 +12,20 @@ def main():
         return
 
     pdf_folder = "./pdf_statements"
-    files = load_files(pdf_folder)
-    
-    for file_path in files:
-        try:
-            data = extract_data_from_pdf(file_path)
-            if data:
-                insert_data_into_db(file_path, data, connection)
-        except Exception as e:
-            logging.error(f"Failed to process {file_path}: {e}")
-            print(f"Failed to process {file_path}: {e}")
-    
+    for file_name in os.listdir(pdf_folder):
+        if file_name.endswith(".pdf") or file_name.endswith(".PDF"):
+            file_path = os.path.join(pdf_folder, file_name)
+            try:
+                data = extract_data_from_pdf(file_path)
+                if data:
+                    insert_data_into_db(file_name, data, connection)
+                else:
+                    logging.error(f"No data extracted from {file_name}.")
+                    print(f"No data extracted from {file_name}.")
+            except Exception as e:
+                logging.error(f"Failed to process {file_name}: {e}")
+                print(f"Failed to process {file_name}: {e}")
+
     connection.close()
 
 if __name__ == "__main__":
