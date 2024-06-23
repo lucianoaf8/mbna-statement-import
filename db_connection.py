@@ -1,6 +1,5 @@
 import os
-import mysql.connector
-from mysql.connector import pooling, errorcode
+from mysql.connector import pooling
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 import logging
@@ -28,7 +27,7 @@ def connect_to_db():
         logging.debug("Successfully connected to the database.")
         print("Successfully connected to the database.")
         return connection
-    except mysql.connector.Error as err:
+    except Exception as err:
         logging.error(f"Database connection error: {err}")
         print(f"Database connection error: {err}")
         return None

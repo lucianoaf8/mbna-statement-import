@@ -1,5 +1,5 @@
-import mysql.connector
 import logging
+import mysql.connector
 
 def insert_data_into_db(file_name, data, connection):
     cursor = connection.cursor()
@@ -25,7 +25,14 @@ def insert_data_into_db(file_name, data, connection):
 
         # Insert into mbna_statement
         add_statement = ("INSERT INTO mbna_statement (account_number, statement_period_start, statement_period_end, statement_date, credit_limit, cash_advance_limit, previous_balance, payments, new_purchases, balance_transfers, cash_advances, interest, fees, new_balance, minimum_payment, minimum_payment_due_date, mbna_account_id, mbna_file_tracker_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
-        statement_data = (data["account_number"], data["statement_period_start"], data["statement_period_end"], data["statement_date"], data["credit_limit"], data["cash_advance_limit"], data["previous_balance"], data["payments"], data["new_purchases"], data["balance_transfers"], data["cash_advances"], data["interest"], data["fees"], data["new_balance"], data["minimum_payment"], data["minimum_payment_due_date"], account_id, file_tracker_id)
+        statement_data = (
+            data["account_number"], data["statement_period_start"], data["statement_period_end"], 
+            data["statement_date"], data["credit_limit"], data["cash_advance_limit"], 
+            data["previous_balance"], data["payments"], data["new_purchases"], 
+            data["balance_transfers"], data["cash_advances"], data["interest"], data["fees"], 
+            data["new_balance"], data["minimum_payment"], data["minimum_payment_due_date"], 
+            account_id, file_tracker_id
+        )
         cursor.execute(add_statement, statement_data)
         statement_id = cursor.lastrowid
 
