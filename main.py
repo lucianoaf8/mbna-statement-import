@@ -1,64 +1,50 @@
-# main.py
 import os
-from datetime import datetime
-import logging
-from scripts.extract_pdf import extract_data_from_pdf
-from scripts.db_utils import connect, check_file_imported
-from scripts.insert_data import (
-    insert_file_tracker, insert_account, insert_transactions,
-    insert_payments, insert_interest_charges, insert_fees, insert_payment_plans
-)
+from extractors.account_extractor import extract_account_info
+from db.db_inserter import insert_data
+from utils.logger import get_logger
 
-# Set up logging for main.py
-log_file = 'logs/main.log'
-os.makedirs(os.path.dirname(log_file), exist_ok=True)
-logging.basicConfig(
-    filename=log_file,
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s:%(message)s'
-)
+logger = get_logger(__name__)
 
-def main():
-    logging.info('Script started.')
-    
-    pdf_directory = 'data/pdf_statements/'
-    pdf_files = [os.path.join(pdf_directory, f) for f in os.listdir(pdf_directory) if f.lower().endswith('.pdf')]
+def process_pdf(pdf_path):
+    if not check_file_exists(pdf_path):
+        account_info = extract_account_info(pdf_path)
+        insert_account_info(account_info, pdf_path)
+        logger.info("Processed file: %s", pdf_path)
+    else:
+        logger.info("File already processed: %s", pdf_path)
 
-    connection = connect()
-    if not connection:
-        logging.error('Failed to connect to the database.')
-        return
+def check_file_exists(pdf_path):
+    # Logic to check if file has already been processed (implement as needed)
+    return False
 
-    for file_path in pdf_files:
-        file_name = os.path.basename(file_path)
-        logging.info(f'Processing file: {file_name}')
-
-        if check_file_imported(connection, file_name):
-            logging.info(f'File {file_name} already imported.')
-            continue
-
-        try:
-            data = extract_data_from_pdf(file_path)
-            logging.info(f'Data extracted successfully from {file_name}')
-        except Exception as e:
-            logging.error(f'Error extracting data from {file_name}: {e}')
-            continue
-
-        try:
-            file_id = insert_file_tracker(connection, file_name, 'MBNA Canada Amazon.ca Credit Card Statement')
-            account_id = insert_account(connection, file_id, data)
-
-            insert_transactions(connection, file_id, account_id, data['transactions'])
-            insert_payments(connection, file_id, account_id, data['payments'])
-            insert_interest_charges(connection, file_id, account_id, data['interest_charges'])
-            insert_fees(connection, file_id, account_id, data['fees'])
-            insert_payment_plans(connection, file_id, account_id, data['payment_plans'])
-
-            logging.info(f'Successfully processed and inserted data from file: {file_name}')
-        except Exception as e:
-            logging.error(f'Error inserting data for {file_name}: {e}')
-
-    logging.info('Script finished.')
+def insert_account_info(account_info, pdf_path):
+    # Example query and data insertion
+    query = """
+    INSERT INTO mbna_accounts (
+        file_id, cardholder_name, account_number, credit_limit, cash_advance_limit, credit_available, 
+        cash_advance_available, statement_closing_date, annual_interest_rate_purchases, 
+        annual_interest_rate_balance_transfers, annual_interest_rate_cash_advances, total_points
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    data = [
+        (
+            1,  # Example file_id, should be obtained by checking the file tracker
+            account_info['cardholder_name'],
+            account_info['account_number'],
+            account_info['credit_limit'],
+            account_info['cash_advance_limit'],
+            account_info['credit_available'],
+            account_info['cash_advance_available'],
+            account_info['statement_closing_date'],
+            account_info['annual_interest_rate_purchases'],
+            account_info['annual_interest_rate_balance_transfers'],
+            account_info['annual_interest_rate_cash_advances'],
+            account_info['total_points']
+        )
+    ]
+    insert_data(query, data)
 
 if __name__ == "__main__":
-    main()
+    pdf_files = [f for f in os.listdir('path/to/pdf/files') if f.endswith('.pdf')]
+    for pdf_file in pdf_files:
+        process_pdf(os.path.join('path/to/pdf/files', pdf_file))

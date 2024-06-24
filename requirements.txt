@@ -1,2 +1,3 @@
+PyPDF2
 mysql-connector-python
-pdfminer.six
+python-dotenv
