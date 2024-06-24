@@ -1,5 +1,6 @@
 # Environment variables
 .env
+.log
 
 # Data files
 pdf_statements/
@@ -26,3 +27,6 @@ Thumbs.db
 # Other backup and temporary files
 *.bak
 *.tmp
+
+# PDF files
+*.pdf
