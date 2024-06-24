@@ -1,5 +1,5 @@
 # scripts/insert_data.py
-from db_utils import connect, check_file_imported
+from .db_utils import connect, check_file_imported
 
 def insert_file_tracker(connection, file_name, description):
     cursor = connection.cursor()
