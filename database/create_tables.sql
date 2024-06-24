@@ -7,51 +7,84 @@ CREATE TABLE mbna_file_tracker (
     INDEX (file_name)
 );
 
--- Create Account table
-CREATE TABLE mbna_account (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    account_number VARCHAR(100) NOT NULL,
-    account_name VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    mbna_file_tracker_id INT,
-    FOREIGN KEY (mbna_file_tracker_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE
-);
-
--- Create Statement table
-CREATE TABLE mbna_statement (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    account_number VARCHAR(100),
-    statement_period_start DATE,
-    statement_period_end DATE,
-    statement_date DATE,
+-- Create account table
+CREATE TABLE mbna_accounts (
+    account_id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id INT,
+    cardholder_name VARCHAR(100),
+    account_number VARCHAR(20),
     credit_limit DECIMAL(10, 2),
     cash_advance_limit DECIMAL(10, 2),
-    previous_balance DECIMAL(10, 2),
-    payments DECIMAL(10, 2),
-    new_purchases DECIMAL(10, 2),
-    balance_transfers DECIMAL(10, 2),
-    cash_advances DECIMAL(10, 2),
-    interest DECIMAL(10, 2),
-    fees DECIMAL(10, 2),
-    new_balance DECIMAL(10, 2),
-    minimum_payment DECIMAL(10, 2),
-    minimum_payment_due_date DATE,
-    mbna_account_id INT,
-    mbna_file_tracker_id INT,
-    FOREIGN KEY (mbna_account_id) REFERENCES mbna_account(id) ON DELETE CASCADE,
-    FOREIGN KEY (mbna_file_tracker_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE
+    credit_available DECIMAL(10, 2),
+    cash_advance_available DECIMAL(10, 2),
+    statement_closing_date DATE,
+    annual_interest_rate_purchases DECIMAL(5, 2),
+    annual_interest_rate_balance_transfers DECIMAL(5, 2),
+    annual_interest_rate_cash_advances DECIMAL(5, 2),
+    total_points INT,
+    FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE
 );
 
--- Create Transaction table
-CREATE TABLE mbna_transaction (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    statement_id INT,
+-- Create transactions table
+CREATE TABLE mbna_transactions (
+    transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id INT,
+    account_id INT,
     transaction_date DATE,
     posting_date DATE,
     description VARCHAR(255),
+    promotional_air VARCHAR(20),
+    reference_number VARCHAR(20),
     amount DECIMAL(10, 2),
-    mbna_file_tracker_id INT,
-    FOREIGN KEY (statement_id) REFERENCES mbna_statement(id) ON DELETE CASCADE,
-    FOREIGN KEY (mbna_file_tracker_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE
+    FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_id) REFERENCES mbna_accounts(account_id) ON DELETE CASCADE
+);
+
+-- Create payments table
+CREATE TABLE mbna_payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id INT,
+    account_id INT,
+    payment_date DATE,
+    amount DECIMAL(10, 2),
+    FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_id) REFERENCES mbna_accounts(account_id) ON DELETE CASCADE
+);
+
+-- Create interest charges table
+CREATE TABLE mbna_interest_charges (
+    interest_id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id INT,
+    account_id INT,
+    charge_date DATE,
+    amount DECIMAL(10, 2),
+    FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_id) REFERENCES mbna_accounts(account_id) ON DELETE CASCADE
+);
+
+-- Create fees table
+CREATE TABLE mbna_fees (
+    fee_id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id INT,
+    account_id INT,
+    fee_date DATE,
+    amount DECIMAL(10, 2),
+    fee_type VARCHAR(50),
+    FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_id) REFERENCES mbna_accounts(account_id) ON DELETE CASCADE
+);
+
+-- Create payment plans table
+CREATE TABLE mbna_payment_plans (
+    plan_id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id INT,
+    account_id INT,
+    plan_name VARCHAR(100),
+    plan_balance DECIMAL(10, 2),
+    start_date DATE,
+    end_date DATE,
+    plan_interest_rate DECIMAL(5, 2),
+    monthly_payment DECIMAL(10, 2),
+    FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_id) REFERENCES mbna_accounts(account_id) ON DELETE CASCADE
 );
