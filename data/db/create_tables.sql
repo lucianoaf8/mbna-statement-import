@@ -5,6 +5,8 @@ CREATE TABLE mbna_accounts (
     account_number VARCHAR(20),
     credit_limit DECIMAL(10, 2),
     cash_advance_limit DECIMAL(10, 2),
+    credit_available DECIMAL(10, 2),
+    cash_advance_available DECIMAL(10, 2),
     statement_closing_date DATE,
     annual_interest_rate_purchases DECIMAL(5, 2),
     annual_interest_rate_balance_transfers DECIMAL(5, 2),
@@ -45,4 +47,3 @@ CREATE TABLE mbna_transactions (
     amount DECIMAL(10, 2),
     FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE
 );
-
