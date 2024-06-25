@@ -1,33 +1,37 @@
+import logging
 import os
-from extractors.account_extractor import extract_account_info
+from utils.convert_pdf_to_csv import convert_pdf_to_csv
+from extractors.account_extractor import extract_account_info_from_csv
 from db.db_inserter import insert_account_info
-from utils.logger import get_logger
-from db.db_connection import create_connection
 
-logger = get_logger(__name__)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def process_pdf(pdf_path):
-    if not check_file_exists(pdf_path):
-        logger.info(f"Processing file: {pdf_path}")
-        account_info = extract_account_info(pdf_path)
-        if account_info:
+def main(pdf_paths):
+    for pdf_path in pdf_paths:
+        try:
+            # Ensure the converted_files directory exists
+            if not os.path.exists("converted_files"):
+                os.makedirs("converted_files")
+            
+            # Define CSV file path
+            csv_path = os.path.join("converted_files", os.path.basename(pdf_path).replace(".PDF", ".csv"))
+            
+            # Convert PDF to CSV
+            convert_pdf_to_csv(pdf_path, csv_path)
+            
+            # Extract account information from CSV
+            account_info = extract_account_info_from_csv(csv_path)
+            if not account_info:
+                raise ValueError("No account information could be extracted.")
+
             insert_account_info(account_info, pdf_path)
-        else:
-            logger.error(f"Failed to extract account information from {pdf_path}")
-    else:
-        logger.info(f"File already processed: {pdf_path}")
+            logger.info(f"Processing completed successfully for file {pdf_path}")
 
-def check_file_exists(pdf_path):
-    connection = create_connection()
-    cursor = connection.cursor()
-    cursor.execute("SELECT COUNT(*) FROM mbna_file_tracker WHERE file_name = %s", (os.path.basename(pdf_path),))
-    result = cursor.fetchone()
-    cursor.close()
-    connection.close()
-    return result[0] > 0
+        except Exception as e:
+            logger.error(f"Failed to process file {pdf_path}: {str(e)}")
+            print(f"Failed to process file {pdf_path}: {str(e)}")
 
 if __name__ == "__main__":
-    pdf_dir = 'pdf_statements'
-    pdf_files = [f for f in os.listdir(pdf_dir) if f.lower().endswith('.pdf')]
-    for pdf_file in pdf_files:
-        process_pdf(os.path.join(pdf_dir, pdf_file))
+    pdf_paths = ["pdf_statements/Amazon_23May2024.PDF"]  # List all your PDF files here
+    main(pdf_paths)
