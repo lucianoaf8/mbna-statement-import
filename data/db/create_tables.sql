@@ -43,7 +43,6 @@ CREATE TABLE mbna_transactions (
     payeee VARCHAR(255),
     adrdress VARCHAR(20),
     amount DECIMAL(10, 2),
-    FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE,
-    FOREIGN KEY (account_id) REFERENCES mbna_accounts(id) ON DELETE CASCADE
+    FOREIGN KEY (file_id) REFERENCES mbna_file_tracker(id) ON DELETE CASCADE
 );
 

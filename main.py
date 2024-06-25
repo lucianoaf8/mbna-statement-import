@@ -1,37 +1,107 @@
-import logging
 import os
-from utils.convert_pdf_to_csv import convert_pdf_to_csv
-from extractors.account_extractor import extract_account_info_from_csv
-from db.db_inserter import insert_account_info
+import csv
+from datetime import datetime
+from dotenv import load_dotenv
+from urllib.parse import urlparse
+import mysql.connector
+from mysql.connector import errorcode
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Load environment variables from .env file
+load_dotenv()
 
-def main(pdf_paths):
-    for pdf_path in pdf_paths:
-        try:
-            # Ensure the converted_files directory exists
-            if not os.path.exists("converted_files"):
-                os.makedirs("converted_files")
-            
-            # Define CSV file path
-            csv_path = os.path.join("converted_files", os.path.basename(pdf_path).replace(".PDF", ".csv"))
-            
-            # Convert PDF to CSV
-            convert_pdf_to_csv(pdf_path, csv_path)
-            
-            # Extract account information from CSV
-            account_info = extract_account_info_from_csv(csv_path)
-            if not account_info:
-                raise ValueError("No account information could be extracted.")
+MYSQL_URL = os.getenv("MYSQL_URL")
+MYSQL_USER = os.getenv("MYSQL_USER")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
 
-            insert_account_info(account_info, pdf_path)
-            logger.info(f"Processing completed successfully for file {pdf_path}")
+# Set up logging
+log_dir = 'logs'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
 
-        except Exception as e:
-            logger.error(f"Failed to process file {pdf_path}: {str(e)}")
-            print(f"Failed to process file {pdf_path}: {str(e)}")
+dbconfig = {
+    "host": urlparse(MYSQL_URL).hostname,
+    "port": urlparse(MYSQL_URL).port if urlparse(MYSQL_URL).port else 3306,
+    "user": MYSQL_USER,
+    "password": MYSQL_PASSWORD,
+    "database": urlparse(MYSQL_URL).path.lstrip('/')
+}
 
-if __name__ == "__main__":
-    pdf_paths = ["pdf_statements/Amazon_23May2024.PDF"]  # List all your PDF files here
-    main(pdf_paths)
+# Connect to the database
+try:
+    conn = mysql.connector.connect(**dbconfig)
+    cursor = conn.cursor()
+    print("Database connection successful!")
+except mysql.connector.Error as err:
+    if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+        print("Something is wrong with your user name or password")
+    elif err.errno == errorcode.ER_BAD_DB_ERROR:
+        print("Database does not exist")
+    else:
+        print(err)
+    exit(1)
+
+# Function to check if a file has already been imported
+def file_already_imported(file_name):
+    query = "SELECT COUNT(*) FROM mbna_file_tracker WHERE file_name = %s"
+    cursor.execute(query, (file_name,))
+    result = cursor.fetchone()
+    return result[0] > 0
+
+# Function to insert a file record into mbna_file_tracker
+def insert_file_tracker(file_name, description):
+    query = "INSERT INTO mbna_file_tracker (file_name, description) VALUES (%s, %s)"
+    cursor.execute(query, (file_name, description))
+    conn.commit()
+    return cursor.lastrowid
+
+# Function to insert transactions into mbna_transactions
+def insert_transactions(file_id, transactions):
+    query = """
+    INSERT INTO mbna_transactions (file_id, account_id, posting_date, payeee, adrdress, amount)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    cursor.executemany(query, transactions)
+    conn.commit()
+
+# Function to extract account ID from file name
+def extract_account_id(file_name):
+    return int(file_name[-8:-4])
+
+# Import CSV files from data/csv_files folder
+csv_folder = 'data/csv_files'
+for file_name in os.listdir(csv_folder):
+    if file_name.endswith('.csv'):
+        file_path = os.path.join(csv_folder, file_name)
+        account_id = extract_account_id(file_name)
+
+        # Check if the file has already been imported
+        if file_already_imported(file_name):
+            print(f"File {file_name} has already been imported. Skipping.")
+            continue
+
+        # Insert file record into mbna_file_tracker
+        file_id = insert_file_tracker(file_name, file_path)
+
+        # Read and insert transactions from the CSV file
+        transactions = []
+        with open(file_path, mode='r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                transaction = (
+                    file_id,
+                    account_id,
+                    datetime.strptime(row['Posted Date'], '%m/%d/%Y').date(),
+                    row['Payee'],
+                    row['Address'],
+                    float(row['Amount'])
+                )
+                transactions.append(transaction)
+
+        # Insert transactions into mbna_transactions
+        insert_transactions(file_id, transactions)
+        print(f"Imported {file_name} successfully.")
+
+# Close the database connection
+cursor.close()
+conn.close()
+print("Database connection closed.")
